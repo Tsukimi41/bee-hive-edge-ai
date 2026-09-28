@@ -1,0 +1,55 @@
+diff --git a/S_System/main.c b/S_System/main.c
+--- a/S_System/main.c
++++ b/S_System/main.c
+@@ -38,5 +38,6 @@
+ #include "UartQueue.h"
+ #include "UartReceiveCommand.h"
++#include "bee_aivibration_adapter.h"
+ #define WAIT_FOR_DISPLAY					(1000)
+ 
+ static void coreInit(void);
+@@ -181,5 +182,7 @@ static void customizableUtilityInit(void)
+ 	//AI初期化
+ 	AIInit();
++	//巣箱監視を初期化。環境センサーは後からコールバックで追加できる。
++	bee_aivibration_init(NULL);
+ 
+ 	SystemErrorInit();
+ 	SystemSettingsInit();
+diff --git a/S_SystemDisplay/SystemStatePredict.c b/S_SystemDisplay/SystemStatePredict.c
+--- a/S_SystemDisplay/SystemStatePredict.c
++++ b/S_SystemDisplay/SystemStatePredict.c
+@@ -16,6 +16,7 @@
+ #include "Lcd.h"
+ #include "AI.h"
+ #include "irq.h"
++#include "bee_aivibration_adapter.h"
+ 
+ /** 0.14秒を指すカウンタ値。10msハンドラでカウントするためこの値になる */
+ #define TIMER_140MS			(14)
+@@ -47,6 +48,25 @@ void SystemStatePredict(void)
+ 		anomalyResult = AIGetCurrentAnomalyResult();
+ 		__enable_irq();
+ 		
++		/*
++		 * 既存の推論コールバックは警告ログが使用するため上書きしない。
++		 * 140 ms表示周期で最新値を取り込み、約1秒ごとに巣箱状態を更新する。
++		 */
++		(void)bee_aivibration_process_latest();
++		if(bee_aivibration_get_state() != BEE_STATE_LEARNING)
++		{
++			anomalyValue = bee_aivibration_get_fused_score();
++			if(bee_aivibration_get_state() == BEE_STATE_ALERT)
++			{
++				anomalyResult = ANOMALY_RED;
++			}
++			else if(bee_aivibration_get_state() == BEE_STATE_WARNING)
++			{
++				anomalyResult = ANOMALY_YELLOW;
++			}
++			else anomalyResult = ANOMALY_NORMAL;
++		}
++		
+ 		//描画
+ 		SystemStatePredictDrawDraw(anomalyValue,anomalyResult);
+ 	}
