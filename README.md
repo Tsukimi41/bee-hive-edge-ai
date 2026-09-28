@@ -14,7 +14,8 @@ ROHM EDGE HACK CHALLENGE 2026への応募作品として開発しています。
 ## できているもの
 
 - `firmware/src/bee_monitor.c` — センサ融合、連続判定、ヒステリシス、警報状態機械（C99）
-- `firmware/example/solist_adapter_template.c` — AISignalInferenceへ組み込む差し替えテンプレート
+- `firmware/src/bee_aivibration_adapter.c` — 配布版AIVibrationInferenceの実C API接続
+- `patches/AIVibrationInference-1.2.25.0530.patch` — 配布LEXIDEプロジェクトへの組み込み差分
 - `tools/bee_monitor.py` — PCで同じ判定を再生・調整するPython実装
 - `tools/replay.py` — CSVログ再生CLI
 - `tests/` — 正常・警告・異常・復帰の自動テスト
@@ -36,8 +37,20 @@ Solist-AIが出す音響異常度を主信号（75%）とし、巣箱ごとの�
 
 この出力は「分蜂の確定診断」ではなく、養蜂家が点検すべき異常予兆です。実地データで閾値を校正してください。
 
-## 実機へ載せる前に必要なもの
+## 配布版へ組み込む
 
-配布された `AISignalInference` のソース一式を `vendor/AISignalInference/` に置いてください（このリポジトリには再配布していません）。その後、`firmware/example/solist_adapter_template.c` の `TODO(SOLIST)` 3か所を、配布サンプルの実際の関数名へ接続します。
+配布ファイルで確認できた現在のプロジェクト名は `AIVibrationInference`、対象版は `V1.2.25.0530` です。ベンダーソースとライブラリは再配布せず、このリポジトリでは追加ファイルと適用パッチだけを管理します。
+
+1. `firmware/include/*.h` をLEXIDEプロジェクトの `S_Bee/` へコピーします。
+2. `firmware/src/*.c` を同じ `S_Bee/` へコピーします。
+3. 配布プロジェクトのルートで次を実行します。
+
+```powershell
+git apply C:\path\to\bee-hive-edge-ai\patches\AIVibrationInference-1.2.25.0530.patch
+```
+
+4. LEXIDEでプロジェクトを更新し、`S_Bee` がビルド対象に含まれたことを確認して再ビルドします。
+
+アダプターは実在する `AIGetFloatAnomalyValue()` と `ConfigDataGetFloatValue()` を使用します。`AISetAIPredictCallBack()` は配布版の警告ログが使用するため上書きしません。
 
 詳細は [docs/IMPLEMENTATION.md](docs/IMPLEMENTATION.md) を参照してください。
