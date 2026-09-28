@@ -9,9 +9,9 @@
 
 CN3の信号線は5 Vトレラントではありません。5 Vセンサーを使う場合は3.3 Vレベル変換が必要です。CN6利用時はJP4を短絡します。マイク基板側ですでに1.65 Vバイアス済みならDC結合（JP7短絡）、交流出力ならボードのAC結合を利用します。必ずオシロスコープで0〜3.3 Vを超えないことを確認してください。
 
-## 2. AISignalInferenceの初期設定
+## 2. AIVibrationInferenceの初期設定
 
-Hostの設定番号は、2026-04-21版マニュアルを基準にしています。
+配布版 `AIVibrationInference V1.2.25.0530` とHostの2026-04-21版マニュアルを基準にしています。
 
 | No. | 項目 | 開始値 | 理由 |
 |---:|---|---:|---|
@@ -45,25 +45,28 @@ Hostの設定番号は、2026-04-21版マニュアルを基準にしています
 3. 別時間帯の正常ログで誤報率を測る。ここを学習データと混ぜない。
 4. 内検作業、車、雨、風を意図的に記録し「異常だが分蜂ではない」条件を把握する。
 5. 黄色閾値は正常検証データの99パーセンタイル付近、赤閾値は安全側に高めから開始する。
-6. `bee_app_tick_1hz()` へ1秒ごとの異常度代表値（平均または最大）と環境値を渡す。
+6. `bee_aivibration_process_latest()` が140 msごとの最新値を集約し、約1秒間の最大異常度を監視ロジックへ渡す。
 7. WARNINGで現場表示、ALERTでSSRと最小フラグ送信を行う。
 
 ## 4. 配布サンプルへの組み込み
 
-1. `firmware/include/bee_monitor.h` と `firmware/src/bee_monitor.c` をLEXIDEプロジェクトへ追加。
-2. `bee_app_init()` を周辺機器初期化後に1回呼ぶ。
-3. `bee_app_tick_1hz()` を1秒タイマまたは既存メインループの1秒処理から呼ぶ。
-4. `solist_adapter_template.c` の `TODO(SOLIST)` を、配布版の実際の異常度・I²C/UART・LED/SSR関数へ接続。
-5. 警報時にもAI処理・センサー取得を止めず、状態を継続表示する。
+1. `firmware/include/` の2ファイルと `firmware/src/` の2ファイルをLEXIDEプロジェクトの `S_Bee/` へ追加する。
+2. `patches/AIVibrationInference-1.2.25.0530.patch` を配布プロジェクトへ適用する。
+3. LEXIDEでプロジェクトを更新し、追加した4ファイルをビルド対象にする。
+4. `AIInit()` の直後で `bee_aivibration_init(NULL)` が1回呼ばれることを確認する。
+5. 既存の140 ms表示処理から `bee_aivibration_process_latest()` が呼ばれることを確認する。
+6. 約60秒の基準学習後、融合結果が既存のLCD・LED・リレー表示へ反映されることを確認する。
+
+`NULL` 初期化では、まず音響AIだけで動作します。温湿度・重量を追加するときは `bee_environment_reader_t` に合う読取関数を実装し、`bee_aivibration_config_t.read_environment` に設定してください。読取関数は `bee_observation_t` の値と対応する `*_valid` を設定します。
 
 ## 5. 現時点の制約
 
-配布Google Driveへのブラウザアクセスが許可されず、購入者／参加者向けソースのC API名を確認できていません。そのため、公開資料から推測した偽の関数名は入れず、実機依存部をテンプレートの3か所に限定しています。サンプルプロジェクトを作業フォルダへ置けば、その版に合わせてビルド可能な接続コードへ仕上げられます。
+音響AIとの接続は配布版の実C APIで完了しています。温湿度・重量センサーは採用品が未確定のため、機種固有ドライバーだけをコールバック境界として残しています。`AISetAIPredictCallBack()` は配布版の赤・黄警告ログでも使用される単一スロットなので、本実装は上書きせず既存の140 ms表示周期から安全に値を取得します。
 
 ## 参考資料
 
 - DT-EBML63Q2557 ハードウェアマニュアル（Rev.20250527）
-- AISignalInference／Host取扱説明書（Rev.20260417／Rev.20260421）
+- AIVibrationInference V1.2.25.0530／Host取扱説明書（Rev.20260421）
 - データ・テクノ「AIハイパーパラメータの調整」
 - Ferrari et al., *Monitoring of swarming sounds in bee hives for early detection of the swarming period* (2008)
 - Ramsey et al., *The prediction of swarming in honeybee colonies using vibrational spectra* (2020)
