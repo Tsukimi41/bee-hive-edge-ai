@@ -49,7 +49,7 @@ diff --git a/S_SystemDisplay/SystemStatePredict.c b/S_SystemDisplay/SystemStateP
 +			}
 +			else anomalyResult = ANOMALY_NORMAL;
 +		}
-+		
++
  		//描画
  		SystemStatePredictDrawDraw(anomalyValue,anomalyResult);
  	}
